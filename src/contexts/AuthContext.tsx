@@ -37,7 +37,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
-            setProfile(userDoc.data() as UserProfile);
+            const data = userDoc.data() as UserProfile;
+            // Ensure bootstrap admin always has admin role even if created earlier as customer
+            if (currentUser.email === BOOTSTRAP_ADMIN_EMAIL && data.role !== 'admin') {
+              const updatedProfile = { ...data, role: 'admin' as const };
+              await setDoc(userDocRef, updatedProfile, { merge: true });
+              setProfile(updatedProfile);
+            } else {
+              setProfile(data);
+            }
           } else {
             // Create user profile
             const newProfile: UserProfile = {

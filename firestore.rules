@@ -18,7 +18,7 @@ service cloud.firestore {
     }
 
     function isBootstrapAdmin() {
-      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'adminfarhan9@gmail.com';
+      return isSignedIn() && request.auth.token.email.matches('(?i)adminfarhan9@gmail\\.com');
     }
 
     function isAdmin() {
@@ -26,11 +26,11 @@ service cloud.firestore {
     }
 
     function isSupplierOrAdmin() {
-      return isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supplier');
+      return isBootstrapAdmin() || isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supplier');
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128;
     }
 
     function isValidUser(data) {
@@ -70,26 +70,24 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == userId || isBootstrapAdmin());
+      allow list: if isBootstrapAdmin();
       
-      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+      allow create: if isSignedIn() && request.auth.uid == userId &&
         isValidUser(incoming()) && 
         incoming().keys().size() <= 5 &&
-        (incoming().role == 'customer' || isBootstrapAdmin()) &&
-        incoming().createdAt == request.time.toMillis();
+        (incoming().role == 'customer' || isBootstrapAdmin());
         
-      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (
-        isAdmin() ||
+      allow update: if isSignedIn() && isValidUser(incoming()) && (
+        isBootstrapAdmin() ||
         (request.auth.uid == userId && 
          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) &&
          incoming().role == existing().role &&
          incoming().email == existing().email &&
-         incoming().createdAt == existing().createdAt &&
-         incoming().updatedAt == request.time.toMillis())
+         incoming().createdAt == existing().createdAt)
       );
       
-      allow delete: if isAdmin();
+      allow delete: if isBootstrapAdmin();
     }
 
     match /products/{productId} {
