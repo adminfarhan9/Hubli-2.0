@@ -106,40 +106,33 @@ service cloud.firestore {
     match /products/{productId} {
       allow get: if isValidId(productId);
       allow list: if true;
-      allow create: if isSupplierOrAdmin() && isValidId(productId) && isValidProduct(incoming()) &&
-        incoming().createdAt == request.time.toMillis();
+      allow create: if isSupplierOrAdmin() && isValidId(productId) && isValidProduct(incoming());
       allow update: if isSupplierOrAdmin() && isValidId(productId) && isValidProduct(incoming()) &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time.toMillis();
+        incoming().createdAt == existing().createdAt;
       allow delete: if isSupplierOrAdmin() && isValidId(productId);
     }
 
     match /offers/{offerId} {
       allow get: if isValidId(offerId);
       allow list: if true;
-      allow create: if isAdmin() && isValidId(offerId) && isValidOffer(incoming()) &&
-        incoming().createdAt == request.time.toMillis();
+      allow create: if isAdmin() && isValidId(offerId) && isValidOffer(incoming());
       allow update: if isAdmin() && isValidId(offerId) && isValidOffer(incoming()) &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time.toMillis();
+        incoming().createdAt == existing().createdAt;
       allow delete: if isAdmin() && isValidId(offerId);
     }
 
     match /settings/{settingId} {
       allow get: if isValidId(settingId);
       allow list: if true;
-      allow create: if isAdmin() && isValidId(settingId) && isValidSetting(incoming()) &&
-        incoming().updatedAt == request.time.toMillis();
-      allow update: if isAdmin() && isValidId(settingId) && isValidSetting(incoming()) &&
-        incoming().updatedAt == request.time.toMillis();
+      allow create: if isAdmin() && isValidId(settingId) && isValidSetting(incoming());
+      allow update: if isAdmin() && isValidId(settingId) && isValidSetting(incoming());
       allow delete: if isAdmin() && isValidId(settingId);
     }
 
     match /assets/{assetId} {
       allow get: if isValidId(assetId);
       allow list: if true;
-      allow create: if isAdmin() && isValidId(assetId) && isValidAsset(incoming()) &&
-        incoming().createdAt == request.time.toMillis();
+      allow create: if isAdmin() && isValidId(assetId) && isValidAsset(incoming());
       allow update: if false; // Assets are immutable once created
       allow delete: if isAdmin() && isValidId(assetId);
     }
