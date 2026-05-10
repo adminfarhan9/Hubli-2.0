@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -15,6 +15,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInAnonymous: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -48,17 +49,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } else {
             // Create user profile
+            const isBootstrapAdmin = currentUser.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
             const newProfile: UserProfile = {
               email: currentUser.email || '',
-              role: currentUser.email === BOOTSTRAP_ADMIN_EMAIL ? 'admin' : 'customer',
-              displayName: currentUser.displayName || 'User',
+              role: isBootstrapAdmin ? 'admin' : 'customer',
+              displayName: currentUser.displayName || (currentUser.isAnonymous ? 'Guest' : 'User'),
               createdAt: Date.now(),
             };
             await setDoc(userDocRef, newProfile);
             setProfile(newProfile);
           }
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+          console.error("Error fetching/creating profile:", error);
+          // Don't throw here to avoid blocking the whole app if rules are tight
+          // handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
         }
       } else {
         setProfile(null);
@@ -71,7 +75,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Google Sign Error:", error);
+    }
+  };
+
+  const signInAnonymous = async () => {
+    try {
+      await signInAnonymously(auth);
+    } catch (error) {
+      console.error("Anonymous Sign Error:", error);
+    }
   };
 
   const logout = async () => {
@@ -79,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, signInWithGoogle, signInAnonymous, logout }}>
       {!loading && children}
     </AuthContext.Provider>
   );

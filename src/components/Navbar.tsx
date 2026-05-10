@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar() {
-  const { user, profile, signInWithGoogle } = useAuth();
+  const { user, profile, signInWithGoogle, signInAnonymous } = useAuth();
 
   return (
     <>
@@ -19,9 +19,30 @@ export default function Navbar() {
             <span>Cart</span>
           </Link>
           {user ? (
-            <Link to="/profile" className="hover:text-green-600 transition-colors uppercase">My Profile</Link>
+            <div className="flex items-center space-x-4">
+              <Link to="/profile" className="hover:text-green-600 transition-colors uppercase">My Profile</Link>
+              <button 
+                onClick={useAuth().logout} 
+                className="hover:text-red-600 transition-colors uppercase text-[10px] font-bold border-l border-slate-200 pl-4"
+              >
+                Sign Out
+              </button>
+            </div>
           ) : (
-            <button onClick={signInWithGoogle} className="hover:text-green-600 transition-colors uppercase">Sign In</button>
+            <div className="flex space-x-3 items-center">
+              <button 
+                onClick={signInAnonymous} 
+                className="hover:text-green-600 transition-colors uppercase text-[10px] sm:text-xs opacity-80"
+              >
+                Guest
+              </button>
+              <button 
+                onClick={signInWithGoogle} 
+                className="hover:text-green-600 transition-colors uppercase"
+              >
+                Sign In
+              </button>
+            </div>
           )}
         </div>
       </div>
