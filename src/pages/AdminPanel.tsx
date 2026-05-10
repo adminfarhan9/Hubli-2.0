@@ -7,11 +7,17 @@ import { doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, deleteDoc 
 export default function AdminPanel() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState('settings');
-  const [settings, setLocalSettings] = useState({ cloudinaryCloudName: '', cloudinaryUploadPreset: '' });
+  const [settings, setLocalSettings] = useState({ 
+    cloudinaryCloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dxyz123', 
+    cloudinaryUploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'hubli_preset',
+    cloudinaryApiKey: '',
+    cloudinaryApiSecret: ''
+  });
   const [savingConfig, setSavingConfig] = useState(false);
   
   const [assets, setAssets] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (profile?.role !== 'admin') return;
@@ -22,9 +28,12 @@ export default function AdminPanel() {
         const docRef = doc(db, 'settings', 'global');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
+          const data = docSnap.data();
           setLocalSettings({
-            cloudinaryCloudName: docSnap.data().cloudinaryCloudName || '',
-            cloudinaryUploadPreset: docSnap.data().cloudinaryUploadPreset || ''
+            cloudinaryCloudName: data.cloudinaryCloudName || import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dxyz123',
+            cloudinaryUploadPreset: data.cloudinaryUploadPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'hubli_preset',
+            cloudinaryApiKey: data.cloudinaryApiKey || '',
+            cloudinaryApiSecret: data.cloudinaryApiSecret || ''
           });
         }
       } catch (err) {
@@ -59,12 +68,58 @@ export default function AdminPanel() {
     }
   };
 
+  const handleResyncAssets = async () => {
+    const { cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret } = settings;
+    
+    if (!cloudinaryCloudName || !cloudinaryApiKey || !cloudinaryApiSecret) {
+      alert("Please update settings with Cloud Name, API Key, and API Secret to resync existing assets.");
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const auth = btoa(`${cloudinaryApiKey}:${cloudinaryApiSecret}`);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/resources/image?max_results=100`, {
+        headers: {
+          'Authorization': `Basic ${auth}`
+        }
+      });
+      
+      const data = await res.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      let syncedCount = 0;
+      for (const item of data.resources) {
+        const existing = assets.find(a => a.publicId === item.public_id);
+        if (!existing) {
+          const newDocRef = doc(collection(db, 'assets'));
+          await setDoc(newDocRef, {
+            url: item.secure_url,
+            publicId: item.public_id,
+            format: item.format,
+            createdAt: new Date(item.created_at).getTime()
+          });
+          syncedCount++;
+        }
+      }
+      alert(`Sync complete! ${syncedCount} new assets added to Firestore.`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Sync failed: ${err.message || 'Check credentials or CORS settings.'}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const cloudName = settings.cloudinaryCloudName || (import.meta as any).env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = settings.cloudinaryUploadPreset || (import.meta as any).env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = settings.cloudinaryCloudName || (import.meta as any).env.VITE_CLOUDINARY_CLOUD_NAME || 'dxyz123';
+    const uploadPreset = settings.cloudinaryUploadPreset || (import.meta as any).env.VITE_CLOUDINARY_UPLOAD_PRESET || 'hubli_preset';
 
     if (!cloudName || !uploadPreset) {
       alert("Please configure Cloudinary credentials first.");
@@ -172,6 +227,26 @@ export default function AdminPanel() {
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none" 
                   />
                </div>
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key (Required for Resync)</label>
+                  <input 
+                    type="text" 
+                    value={settings.cloudinaryApiKey} 
+                    onChange={e => setLocalSettings(s => ({...s, cloudinaryApiKey: e.target.value}))}
+                    placeholder="API Key" 
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none" 
+                  />
+               </div>
+               <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">API Secret (Required for Resync)</label>
+                  <input 
+                    type="password" 
+                    value={settings.cloudinaryApiSecret} 
+                    onChange={e => setLocalSettings(s => ({...s, cloudinaryApiSecret: e.target.value}))}
+                    placeholder="API Secret" 
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none" 
+                  />
+               </div>
                <button 
                 onClick={handleUpdateSettings} 
                 disabled={savingConfig}
@@ -205,7 +280,16 @@ export default function AdminPanel() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold tracking-tight">Uploaded Pictures</h3>
-              <span className="text-sm text-gray-500">{assets.length} items</span>
+              <div className="flex gap-4 items-center">
+                <span className="text-sm text-gray-500">{assets.length} items</span>
+                <button 
+                  onClick={handleResyncAssets}
+                  disabled={syncing}
+                  className="bg-brand-50 text-brand-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-100 transition-colors disabled:opacity-50"
+                >
+                  {syncing ? "Syncing..." : "Resync from Cloudinary"}
+                </button>
+              </div>
             </div>
             {assets.length === 0 ? (
               <div className="text-center py-12 text-gray-500 border border-gray-100 rounded-xl bg-gray-50">

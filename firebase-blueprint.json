@@ -52,6 +52,8 @@
       "properties": {
         "cloudinaryCloudName": { "type": "string" },
         "cloudinaryUploadPreset": { "type": "string" },
+        "cloudinaryApiKey": { "type": "string" },
+        "cloudinaryApiSecret": { "type": "string" },
         "updatedAt": { "type": "number" }
       },
       "required": ["updatedAt"]

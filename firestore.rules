@@ -69,6 +69,8 @@ service cloud.firestore {
       return data.keys().hasAll(['updatedAt']) &&
         (data.get('cloudinaryCloudName', '') is string && data.get('cloudinaryCloudName', '').size() <= 200) &&
         (data.get('cloudinaryUploadPreset', '') is string && data.get('cloudinaryUploadPreset', '').size() <= 200) &&
+        (data.get('cloudinaryApiKey', '') is string && data.get('cloudinaryApiKey', '').size() <= 200) &&
+        (data.get('cloudinaryApiSecret', '') is string && data.get('cloudinaryApiSecret', '').size() <= 200) &&
         data.updatedAt is number;
     }
 
