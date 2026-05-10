@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface UserProfile {
   email: string;
   role: 'customer' | 'supplier' | 'delivery' | 'admin';
   displayName: string;
+  phoneNumber?: string;
   createdAt: number;
 }
 
@@ -30,25 +31,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let unsubscribeSnapshot: (() => void) | null = null;
+    
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        
         try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
+          // Initialize if it doesn't exist yet
           const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists()) {
-            const data = userDoc.data() as UserProfile;
-            // Ensure bootstrap admin always has admin role even if created earlier as customer
-            if (currentUser.email === BOOTSTRAP_ADMIN_EMAIL && data.role !== 'admin') {
-              const updatedProfile = { ...data, role: 'admin' as const };
-              await setDoc(userDocRef, updatedProfile, { merge: true });
-              setProfile(updatedProfile);
-            } else {
-              setProfile(data);
-            }
-          } else {
-            // Create user profile
+          if (!userDoc.exists()) {
             const isBootstrapAdmin = currentUser.email?.toLowerCase() === BOOTSTRAP_ADMIN_EMAIL.toLowerCase();
             const newProfile: UserProfile = {
               email: currentUser.email || '',
@@ -57,37 +50,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               createdAt: Date.now(),
             };
             await setDoc(userDocRef, newProfile);
-            setProfile(newProfile);
+          } else {
+            const data = userDoc.data() as UserProfile;
+             if (currentUser.email === BOOTSTRAP_ADMIN_EMAIL && data.role !== 'admin') {
+                await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+             }
           }
         } catch (error) {
-          console.error("Error fetching/creating profile:", error);
-          // Don't throw here to avoid blocking the whole app if rules are tight
-          // handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+          console.error("Error creating/checking profile:", error);
         }
+
+        // Listen for real-time profile updates
+        unsubscribeSnapshot = onSnapshot(userDocRef, (snapshot) => {
+          if (snapshot.exists()) {
+             setProfile(snapshot.data() as UserProfile);
+          }
+        }, (error) => {
+          console.error("Profile snapshot error:", error);
+        });
+
       } else {
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
+        }
         setProfile(null);
       }
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Google Sign Error:", error);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        // User closed the popup, silently ignore or handle accordingly
+        console.log("Sign in aborted by user.");
+      } else {
+        console.error("Google Sign Error:", error);
+        throw error;
+      }
     }
   };
 
   const signInAnonymous = async () => {
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      console.error("Anonymous Sign Error:", error);
-    }
+    await signInAnonymously(auth);
   };
 
   const logout = async () => {

@@ -40,6 +40,7 @@ service cloud.firestore {
         data.email is string && data.email.size() <= 200 &&
         data.role is string && data.role in ['customer', 'supplier', 'delivery', 'admin'] &&
         (data.get('displayName', '') is string && data.get('displayName', '').size() <= 100) &&
+        (data.get('phoneNumber', '') is string && (data.get('phoneNumber', '') == '' || data.get('phoneNumber', '').matches('^[0-9]{11}$'))) &&
         data.createdAt is number && (data.get('updatedAt', 0) is number);
     }
 
@@ -77,13 +78,13 @@ service cloud.firestore {
       
       allow create: if isSignedIn() && request.auth.uid == userId &&
         isValidUser(incoming()) && 
-        incoming().keys().size() <= 5 &&
+        incoming().keys().size() <= 6 &&
         (incoming().role == 'customer' || isBootstrapAdmin());
         
       allow update: if isSignedIn() && isValidUser(incoming()) && (
         isBootstrapAdmin() ||
         (request.auth.uid == userId && 
-         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phoneNumber', 'updatedAt']) &&
          incoming().role == existing().role &&
          incoming().email == existing().email &&
          incoming().createdAt == existing().createdAt)

@@ -8,6 +8,7 @@
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["customer", "supplier", "delivery", "admin"] },
         "displayName": { "type": "string" },
+        "phoneNumber": { "type": "string", "description": "11 digit phone number" },
         "createdAt": { "type": "number", "description": "Timestamp" },
         "updatedAt": { "type": "number", "description": "Timestamp" }
       },

@@ -1,16 +1,39 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const { user, signInWithGoogle, signInAnonymous } = useAuth();
   const navigate = useNavigate();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       navigate('/');
     }
   }, [user, navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setErrorMsg(null);
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      setErrorMsg(error.message || 'Failed to sign in with Google');
+    }
+  };
+
+  const handleAnonymousSignIn = async () => {
+    setErrorMsg(null);
+    try {
+      await signInAnonymous();
+    } catch (error: any) {
+      if (error.code === 'auth/operation-not-allowed') {
+        setErrorMsg('Guest login is not enabled. Please enable "Anonymous" provider in the Firebase Authentication console.');
+      } else {
+        setErrorMsg(error.message || 'Failed to sign in as guest');
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-4 w-full">
@@ -22,11 +45,17 @@ export default function Login() {
           </svg>
         </div>
         <h2 className="text-3xl font-black tracking-tighter text-slate-900 mb-2">Welcome Back</h2>
-        <p className="text-sm font-medium text-slate-500 mb-8 text-center">Sign in to access your fresh organic groceries and manage your orders.</p>
+        <p className="text-sm font-medium text-slate-500 mb-6 text-center">Sign in to access your fresh organic groceries and manage your orders.</p>
+
+        {errorMsg && (
+          <div className="w-full bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-6 font-medium text-center border border-red-200">
+            {errorMsg}
+          </div>
+        )}
 
         <div className="flex flex-col space-y-4 w-full">
           <button 
-            onClick={signInWithGoogle}
+            onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center space-x-3 bg-white border-2 border-slate-200 text-slate-900 py-3 px-4 rounded-xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
@@ -39,7 +68,7 @@ export default function Login() {
           </button>
 
           <button 
-            onClick={signInAnonymous}
+            onClick={handleAnonymousSignIn}
             className="w-full flex items-center justify-center space-x-3 bg-black border-2 border-black text-white py-3 px-4 rounded-xl font-bold hover:bg-slate-900 transition-colors"
           >
              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
