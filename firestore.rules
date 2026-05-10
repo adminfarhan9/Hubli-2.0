@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'adminfarhan9@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    function isSupplierOrAdmin() {
+      return isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supplier');
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt']) &&
+        data.email is string && data.email.size() <= 200 &&
+        data.role is string && data.role in ['customer', 'supplier', 'delivery', 'admin'] &&
+        (data.get('displayName', '') is string && data.get('displayName', '').size() <= 100) &&
+        data.createdAt is number && (data.get('updatedAt', 0) is number);
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'createdAt']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+        data.price is number && data.price >= 0 &&
+        (data.get('description', '') is string && data.get('description', '').size() <= 1000) &&
+        (data.get('imageUrl', '') is string && data.get('imageUrl', '').size() <= 1000) &&
+        (data.get('category', '') is string && data.get('category', '').size() <= 100) &&
+        (data.get('isFeatured', false) is bool) &&
+        (data.get('stock', 0) is number && data.get('stock', 0) >= 0) &&
+        data.createdAt is number && (data.get('updatedAt', 0) is number);
+    }
+    
+    function isValidOffer(data) {
+      return data.keys().hasAll(['title', 'active', 'createdAt']) &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.active is bool &&
+        (data.get('description', '') is string && data.get('description', '').size() <= 1000) &&
+        (data.get('imageUrl', '') is string && data.get('imageUrl', '').size() <= 1000) &&
+        data.createdAt is number && (data.get('updatedAt', 0) is number);
+    }
+
+    function isValidSetting(data) {
+      return data.keys().hasAll(['updatedAt']) &&
+        (data.get('cloudinaryCloudName', '') is string && data.get('cloudinaryCloudName', '').size() <= 200) &&
+        (data.get('cloudinaryUploadPreset', '') is string && data.get('cloudinaryUploadPreset', '').size() <= 200) &&
+        data.updatedAt is number;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+        isValidUser(incoming()) && 
+        incoming().keys().size() <= 5 &&
+        (incoming().role == 'customer' || isBootstrapAdmin()) &&
+        incoming().createdAt == request.time.toMillis();
+        
+      allow update: if isSignedIn() && isValidId(userId) && isValidUser(incoming()) && (
+        isAdmin() ||
+        (request.auth.uid == userId && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) &&
+         incoming().role == existing().role &&
+         incoming().email == existing().email &&
+         incoming().createdAt == existing().createdAt &&
+         incoming().updatedAt == request.time.toMillis())
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if true;
+      allow create: if isSupplierOrAdmin() && isValidId(productId) && isValidProduct(incoming()) &&
+        incoming().createdAt == request.time.toMillis();
+      allow update: if isSupplierOrAdmin() && isValidId(productId) && isValidProduct(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time.toMillis();
+      allow delete: if isSupplierOrAdmin() && isValidId(productId);
+    }
+
+    match /offers/{offerId} {
+      allow get: if isValidId(offerId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(offerId) && isValidOffer(incoming()) &&
+        incoming().createdAt == request.time.toMillis();
+      allow update: if isAdmin() && isValidId(offerId) && isValidOffer(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time.toMillis();
+      allow delete: if isAdmin() && isValidId(offerId);
+    }
+
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(settingId) && isValidSetting(incoming()) &&
+        incoming().updatedAt == request.time.toMillis();
+      allow update: if isAdmin() && isValidId(settingId) && isValidSetting(incoming()) &&
+        incoming().updatedAt == request.time.toMillis();
+      allow delete: if isAdmin() && isValidId(settingId);
+    }
+  }
+}

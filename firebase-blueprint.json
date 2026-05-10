@@ -1,0 +1,77 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile containing role and metadata.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["customer", "supplier", "delivery", "admin"] },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "number", "description": "Timestamp" },
+        "updatedAt": { "type": "number", "description": "Timestamp" }
+      },
+      "required": ["email", "role", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Grocery product.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "category": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "stock": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["name", "price", "createdAt"]
+    },
+    "Offer": {
+      "title": "Offer",
+      "description": "Seasonal or promotional offer.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "active", "createdAt"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Global settings like cloudinary keys.",
+      "type": "object",
+      "properties": {
+        "cloudinaryCloudName": { "type": "string" },
+        "cloudinaryUploadPreset": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles indexed by Auth UID."
+    },
+    "products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Grocery products available for purchase."
+    },
+    "offers/{offerId}": {
+      "schema": { "$ref": "#/entities/Offer" },
+      "description": "Seasonal offers displayed on the homepage."
+    },
+    "settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Setting" },
+      "description": "Application settings managed by admin."
+    }
+  }
+}
