@@ -9,6 +9,7 @@ import Profile from './pages/Profile';
 import Contacts from './pages/Contacts';
 import FAQ from './pages/FAQ';
 import About from './pages/About';
+import Login from './pages/Login';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/about" element={<About />} />
+              <Route path="/login" element={<Login />} />
             </Routes>
           </main>
           {/* Bottom Admin Bar Peek */}

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar() {
-  const { user, profile, signInWithGoogle, signInAnonymous } = useAuth();
+  const { user, profile } = useAuth();
 
   return (
     <>
@@ -29,20 +29,9 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <div className="flex space-x-3 items-center">
-              <button 
-                onClick={signInAnonymous} 
-                className="hover:text-green-600 transition-colors uppercase text-[10px] sm:text-xs opacity-80"
-              >
-                Guest
-              </button>
-              <button 
-                onClick={signInWithGoogle} 
-                className="hover:text-green-600 transition-colors uppercase"
-              >
-                Sign In
-              </button>
-            </div>
+            <Link to="/login" className="hover:text-green-600 transition-colors uppercase">
+              Sign In
+            </Link>
           )}
         </div>
       </div>
