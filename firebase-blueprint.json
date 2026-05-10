@@ -55,6 +55,18 @@
         "updatedAt": { "type": "number" }
       },
       "required": ["updatedAt"]
+    },
+    "Asset": {
+      "title": "Asset",
+      "description": "Uploaded picture/asset synced with cloud storage.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string" },
+        "publicId": { "type": "string" },
+        "format": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["url", "publicId", "format", "createdAt"]
     }
   },
   "firestore": {
@@ -73,6 +85,10 @@
     "settings/{settingId}": {
       "schema": { "$ref": "#/entities/Setting" },
       "description": "Application settings managed by admin."
+    },
+    "assets/{assetId}": {
+      "schema": { "$ref": "#/entities/Asset" },
+      "description": "Uploaded pictures."
     }
   }
 }

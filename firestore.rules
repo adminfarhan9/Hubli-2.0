@@ -72,6 +72,14 @@ service cloud.firestore {
         data.updatedAt is number;
     }
 
+    function isValidAsset(data) {
+      return data.keys().hasAll(['url', 'publicId', 'format', 'createdAt']) &&
+        data.url is string && data.url.size() > 0 && data.url.size() <= 1000 &&
+        data.publicId is string && data.publicId.size() > 0 && data.publicId.size() <= 500 &&
+        data.format is string && data.format.size() <= 50 &&
+        data.createdAt is number;
+    }
+
     match /users/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isBootstrapAdmin());
       allow list: if isBootstrapAdmin();
@@ -123,6 +131,15 @@ service cloud.firestore {
       allow update: if isAdmin() && isValidId(settingId) && isValidSetting(incoming()) &&
         incoming().updatedAt == request.time.toMillis();
       allow delete: if isAdmin() && isValidId(settingId);
+    }
+
+    match /assets/{assetId} {
+      allow get: if isValidId(assetId);
+      allow list: if true;
+      allow create: if isAdmin() && isValidId(assetId) && isValidAsset(incoming()) &&
+        incoming().createdAt == request.time.toMillis();
+      allow update: if false; // Assets are immutable once created
+      allow delete: if isAdmin() && isValidId(assetId);
     }
   }
 }
